@@ -1,0 +1,543 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Quiz Akademie</title>
+<meta name="theme-color" content="#12332b">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Abril+Fatface&family=Karla:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  /* Layout idea: a pub chalkboard. The question is the one loud thing; controls and scores stay quiet around it. */
+  --board:#12332b;
+  --board-deep:#0b241e;
+  --chalk:#f3ecda;
+  --chalk-dim:#a7b9ae;
+  --brass:#e3ab3c;
+  --right:#86d9a0;
+  --wrong:#f29480;
+  --line:rgba(243,236,218,.17);
+  --fill:rgba(243,236,218,.06);
+  --display:"Abril Fatface","Rockwell","Georgia",serif;
+  --body:"Karla","Segoe UI","Helvetica Neue",Arial,sans-serif;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+html,body{margin:0;min-height:100%}
+body{
+  background:var(--board);
+  background-image:radial-gradient(ellipse at 50% -10%, #1b4539 0%, var(--board) 55%, var(--board-deep) 100%);
+  background-attachment:fixed;
+  color:var(--chalk);
+  font-family:var(--body);
+  font-size:17px;
+  line-height:1.45;
+}
+.wrap{max-width:1120px;margin:0 auto;padding:24px 20px 56px}
+header.top{display:flex;align-items:baseline;justify-content:space-between;gap:16px;flex-wrap:wrap;padding-bottom:14px;border-bottom:2px solid var(--line);margin-bottom:26px}
+.brand{font-family:var(--display);font-size:28px;letter-spacing:.01em;margin:0}
+.brand span{color:var(--brass)}
+h1,h2,h3{font-family:var(--display);font-weight:400;margin:0;text-wrap:balance}
+h2{font-size:22px}
+.eyebrow{font-size:13px;letter-spacing:.14em;text-transform:uppercase;color:var(--chalk-dim);font-weight:700}
+.muted{color:var(--chalk-dim)}
+.small{font-size:14px}
+button{font:inherit;color:inherit;cursor:pointer}
+button:focus-visible,input:focus-visible,select:focus-visible{outline:3px solid var(--brass);outline-offset:2px}
+.btn{background:var(--brass);color:#22190a;border:0;border-radius:6px;padding:12px 22px;font-weight:700;font-size:17px}
+.btn:hover{filter:brightness(1.08)}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+.btn.ghost{background:transparent;color:var(--chalk);border:1.5px solid var(--line)}
+.btn.ghost:hover{background:var(--fill)}
+.btn.sm{padding:7px 12px;font-size:14px}
+.link{background:none;border:0;padding:0;color:var(--chalk-dim);text-decoration:underline;font-size:14px}
+.link:hover{color:var(--chalk)}
+
+/* setup */
+.setup{display:grid;gap:30px;max-width:760px}
+.field{display:grid;gap:12px}
+.field > label, .field > .lab{font-family:var(--display);font-size:21px}
+.chips{display:flex;flex-wrap:wrap;gap:10px}
+.chip{background:transparent;border:1.5px solid var(--line);border-radius:999px;padding:8px 16px;font-weight:500}
+.chip:hover{background:var(--fill)}
+.chip[aria-pressed="true"]{background:var(--chalk);color:var(--board-deep);border-color:var(--chalk);font-weight:700}
+.row{display:flex;flex-wrap:wrap;gap:12px;align-items:center}
+.stepper{display:inline-flex;align-items:center;border:1.5px solid var(--line);border-radius:6px;overflow:hidden}
+.stepper button{background:transparent;border:0;width:44px;height:44px;font-size:22px}
+.stepper button:hover{background:var(--fill)}
+.stepper output{min-width:52px;text-align:center;font-family:var(--display);font-size:22px;font-variant-numeric:tabular-nums}
+input[type=text],input[type=password]{font:inherit;color:var(--chalk);background:var(--fill);border:1.5px solid var(--line);border-radius:6px;padding:9px 12px;min-width:0}
+input::placeholder{color:var(--chalk-dim)}
+.teams{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:10px}
+.teams input{width:100%}
+.seg{display:inline-flex;border:1.5px solid var(--line);border-radius:6px;overflow:hidden;flex-wrap:wrap}
+.seg button{background:transparent;border:0;padding:9px 15px;border-right:1.5px solid var(--line)}
+.seg button:last-child{border-right:0}
+.seg button[aria-pressed="true"]{background:var(--chalk);color:var(--board-deep);font-weight:700}
+.check{display:flex;gap:10px;align-items:flex-start}
+.check input{width:20px;height:20px;margin-top:2px;accent-color:var(--brass)}
+.note{border-left:3px solid var(--brass);padding:4px 0 4px 14px}
+.err{border-left:3px solid var(--wrong);padding:4px 0 4px 14px;color:var(--wrong)}
+
+/* play */
+.play{display:grid;grid-template-columns:minmax(0,1fr) 290px;gap:36px;align-items:start}
+@media (max-width:860px){.play{grid-template-columns:1fr}}
+.progress{display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:18px}
+.question{font-family:var(--display);font-size:clamp(28px,4.4vw,46px);line-height:1.12;margin:0 0 26px;text-wrap:balance;overflow-wrap:anywhere}
+.opts{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:0 0 30px;padding:0;list-style:none}
+@media (max-width:560px){.opts{grid-template-columns:1fr}}
+.opts li{display:flex;gap:14px;align-items:baseline;border:1.5px solid var(--line);border-radius:8px;padding:13px 16px;font-size:20px;overflow-wrap:anywhere}
+.opts .letter{font-family:var(--display);color:var(--brass);font-size:22px;flex:none}
+.opts li.correct{border-color:var(--right);background:rgba(134,217,160,.13)}
+.opts li.correct .letter{color:var(--right)}
+.opts li.dim{opacity:.5}
+.answerbox{border:1.5px dashed var(--line);border-radius:8px;padding:14px 16px;margin-bottom:30px;font-size:20px}
+.answerbox.shown{border:1.5px solid var(--right);background:rgba(134,217,160,.13)}
+.sheet{display:grid;gap:8px;margin-bottom:26px}
+.trow{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;padding:8px 0;border-bottom:1px solid var(--line)}
+.tname{font-weight:700;overflow-wrap:anywhere;min-width:0}
+.pick{display:flex;gap:6px}
+.pick button{width:44px;height:40px;border-radius:6px;border:1.5px solid var(--line);background:transparent;font-weight:700}
+.pick button.wide{width:auto;padding:0 14px}
+.pick button:hover{background:var(--fill)}
+.pick button[aria-pressed="true"]{background:var(--chalk);color:var(--board-deep);border-color:var(--chalk)}
+.pick.revealed button[aria-pressed="true"].ok{background:var(--right);border-color:var(--right)}
+.pick.revealed button[aria-pressed="true"].no{background:var(--wrong);border-color:var(--wrong)}
+.mark{font-size:14px;font-weight:700;min-width:64px;text-align:right}
+.mark.ok{color:var(--right)} .mark.no{color:var(--wrong)}
+.actions{display:flex;gap:12px;flex-wrap:wrap;align-items:center}
+
+aside.scores{border:1.5px solid var(--line);border-radius:10px;padding:18px}
+aside.scores h2{margin-bottom:12px}
+.srow{display:grid;grid-template-columns:22px minmax(0,1fr) auto auto;gap:8px;align-items:center;padding:7px 0;border-bottom:1px solid var(--line)}
+.srow:last-of-type{border-bottom:0}
+.srow .rank{color:var(--chalk-dim);font-variant-numeric:tabular-nums;font-size:14px}
+.srow .nm{overflow-wrap:anywhere}
+.srow .pts{font-family:var(--display);font-size:22px;font-variant-numeric:tabular-nums;min-width:30px;text-align:right}
+.srow.lead .pts{color:var(--brass)}
+.adj{display:flex;gap:2px}
+.adj button{width:26px;height:26px;border-radius:4px;border:1px solid var(--line);background:transparent;color:var(--chalk-dim);font-size:15px;line-height:1;padding:0}
+.adj button:hover{background:var(--fill);color:var(--chalk)}
+
+/* round intro, loading, final */
+.center{max-width:680px}
+.big{font-family:var(--display);font-size:clamp(40px,7vw,72px);line-height:1.02;margin:10px 0 18px;overflow-wrap:anywhere}
+.big em{font-style:normal;color:var(--brass)}
+.bar{height:8px;border-radius:99px;background:var(--fill);overflow:hidden;margin:18px 0 10px}
+.bar i{display:block;height:100%;background:var(--brass);transition:width .3s}
+table{border-collapse:collapse;width:100%;font-variant-numeric:tabular-nums}
+.tablewrap{overflow-x:auto;margin-top:8px}
+th,td{padding:9px 12px;border-bottom:1px solid var(--line);text-align:right;white-space:nowrap}
+th:first-child,td:first-child{text-align:left;white-space:normal}
+th{font-size:13px;letter-spacing:.08em;text-transform:uppercase;color:var(--chalk-dim)}
+td.tot{font-family:var(--display);font-size:20px;color:var(--brass)}
+.final{display:grid;gap:28px}
+dialog{background:var(--board-deep);color:var(--chalk);border:1.5px solid var(--line);border-radius:10px;padding:22px;max-width:420px}
+dialog::backdrop{background:rgba(0,0,0,.55)}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <p class="brand">Quiz <span>Akademie</span></p>
+    <div id="topActions"></div>
+  </header>
+  <main id="app"></main>
+</div>
+<dialog id="confirmDlg">
+  <p id="confirmMsg" style="margin-top:0"></p>
+  <div class="actions"><button class="btn sm" id="confirmYes">Yes, end it</button><button class="btn ghost sm" id="confirmNo">Keep playing</button></div>
+</dialog>
+<dialog id="settingsDlg">
+  <h2 style="margin-bottom:10px">Settings</h2>
+  <form id="settingsForm" style="display:grid;gap:12px">
+    <label for="apiKeyInput" class="small">Anthropic API key, used to write fresh questions. It is stored only in this browser and sent only to Anthropic.</label>
+    <input type="password" id="apiKeyInput" placeholder="sk-ant-..." autocomplete="off" style="width:100%">
+    <p class="small muted" id="keyStatus" style="margin:0"></p>
+    <div class="actions"><button class="btn sm" type="submit">Save</button><button class="btn ghost sm" type="button" id="keyRemove">Remove key</button><button class="btn ghost sm" type="button" id="settingsClose">Close</button></div>
+  </form>
+</dialog>
+
+<script>
+"use strict";
+/* ---------- built-in question bank: {q, a (correct), w [3 wrong]} ---------- */
+const BANK = {
+"Sports":[
+ {q:"How many players does a rugby union team have on the field?",a:"15",w:["13","11","14"]},
+ {q:"In which sport would you perform a slam dunk?",a:"Basketball",w:["Volleyball","Handball","Water polo"]},
+ {q:"Which country won the 2019 Rugby World Cup?",a:"South Africa",w:["England","New Zealand","Wales"]},
+ {q:"How long is a marathon?",a:"42.195 km",w:["40 km","45.5 km","38.6 km"]},
+ {q:"In tennis, what word is used for a score of zero?",a:"Love",w:["Nil","Duck","Blank"]},
+ {q:"Which golf tournament awards its winner a green jacket?",a:"The Masters",w:["The Open Championship","US Open","PGA Championship"]},
+ {q:"How many rings are on the Olympic flag?",a:"Five",w:["Four","Six","Seven"]},
+ {q:"In cricket, how many legal balls make up a standard over?",a:"Six",w:["Five","Eight","Four"]},
+ {q:"Which country hosted the 2010 FIFA World Cup?",a:"South Africa",w:["Brazil","Germany","Japan"]},
+ {q:"How many players does each side have on court in volleyball?",a:"Six",w:["Five","Seven","Eight"]}],
+"General Knowledge":[
+ {q:"How many sides does a hexagon have?",a:"Six",w:["Five","Seven","Eight"]},
+ {q:"What is the chemical symbol for gold?",a:"Au",w:["Ag","Go","Gd"]},
+ {q:"How many keys does a standard piano have?",a:"88",w:["76","92","84"]},
+ {q:"Who painted the Mona Lisa?",a:"Leonardo da Vinci",w:["Michelangelo","Raphael","Botticelli"]},
+ {q:"Which language has the most native speakers?",a:"Mandarin Chinese",w:["Spanish","English","Hindi"]},
+ {q:"What is the Roman numeral for 50?",a:"L",w:["C","D","X"]},
+ {q:"What is the hardest natural substance?",a:"Diamond",w:["Quartz","Granite","Sapphire"]},
+ {q:"How many minutes are there in a full day?",a:"1,440",w:["1,240","1,640","2,400"]},
+ {q:"Which is the tallest living land animal?",a:"Giraffe",w:["African elephant","Ostrich","Polar bear"]},
+ {q:"Which colour do you get by mixing blue and yellow paint?",a:"Green",w:["Purple","Orange","Brown"]}],
+"Food & Drink":[
+ {q:"What is the main ingredient in guacamole?",a:"Avocado",w:["Green pepper","Cucumber","Peas"]},
+ {q:"Which country does paella come from?",a:"Spain",w:["Portugal","Italy","Mexico"]},
+ {q:"What is the main ingredient in hummus?",a:"Chickpeas",w:["Lentils","White beans","Aubergine"]},
+ {q:"Which spice is the most expensive by weight?",a:"Saffron",w:["Vanilla","Cardamom","Cinnamon"]},
+ {q:"Which cheese traditionally tops a Margherita pizza?",a:"Mozzarella",w:["Parmesan","Ricotta","Provolone"]},
+ {q:"What is tofu made from?",a:"Soybeans",w:["Rice","Chickpeas","Milk"]},
+ {q:"The Pinotage grape was developed in which country?",a:"South Africa",w:["France","Australia","Chile"]},
+ {q:"Which herb gives traditional pesto its green colour?",a:"Basil",w:["Parsley","Coriander","Mint"]},
+ {q:"Which country is biltong most closely associated with?",a:"South Africa",w:["Argentina","Australia","Kenya"]},
+ {q:"What is sushi rice traditionally seasoned with?",a:"Rice vinegar",w:["Soy sauce","Lemon juice","Fish sauce"]}],
+"History":[
+ {q:"In which year did the Second World War end?",a:"1945",w:["1944","1946","1943"]},
+ {q:"Who was the first person to walk on the Moon?",a:"Neil Armstrong",w:["Buzz Aldrin","Yuri Gagarin","Michael Collins"]},
+ {q:"Which wall came down in 1989?",a:"The Berlin Wall",w:["Hadrian's Wall","The Great Wall of China","The Western Wall"]},
+ {q:"In which year did Nelson Mandela become President of South Africa?",a:"1994",w:["1990","1992","1996"]},
+ {q:"Who was the first emperor of Rome?",a:"Augustus",w:["Julius Caesar","Nero","Tiberius"]},
+ {q:"In which year did the Titanic sink?",a:"1912",w:["1905","1915","1921"]},
+ {q:"Which civilisation built Machu Picchu?",a:"The Inca",w:["The Maya","The Aztecs","The Olmecs"]},
+ {q:"Which French emperor was defeated at Waterloo in 1815?",a:"Napoleon Bonaparte",w:["Louis XVI","Charlemagne","Napoleon III"]},
+ {q:"Which ship carried the Pilgrims to America in 1620?",a:"The Mayflower",w:["The Santa Maria","The Endeavour","The Golden Hind"]},
+ {q:"In which city was Archduke Franz Ferdinand assassinated in 1914?",a:"Sarajevo",w:["Vienna","Belgrade","Budapest"]}],
+"Geography":[
+ {q:"Which is the longest river in Africa?",a:"The Nile",w:["The Congo","The Niger","The Zambezi"]},
+ {q:"What is the capital of Australia?",a:"Canberra",w:["Sydney","Melbourne","Perth"]},
+ {q:"Which is the smallest country in the world?",a:"Vatican City",w:["Monaco","San Marino","Liechtenstein"]},
+ {q:"In which country is Mount Kilimanjaro?",a:"Tanzania",w:["Kenya","Uganda","Ethiopia"]},
+ {q:"Which is the largest ocean?",a:"The Pacific",w:["The Atlantic","The Indian","The Southern"]},
+ {q:"Which desert covers much of northern Africa?",a:"The Sahara",w:["The Kalahari","The Namib","The Gobi"]},
+ {q:"What is the capital of Canada?",a:"Ottawa",w:["Toronto","Montreal","Vancouver"]},
+ {q:"Istanbul is the largest city of which country?",a:"Türkiye",w:["Greece","Egypt","Iran"]},
+ {q:"Which is the largest country by area?",a:"Russia",w:["Canada","China","United States"]},
+ {q:"Table Mountain overlooks which city?",a:"Cape Town",w:["Durban","Rio de Janeiro","Sydney"]}],
+"Music":[
+ {q:"Which band released the album Abbey Road?",a:"The Beatles",w:["The Rolling Stones","The Kinks","Pink Floyd"]},
+ {q:"How many strings does a standard guitar have?",a:"Six",w:["Four","Five","Seven"]},
+ {q:"Which singer is known as the King of Pop?",a:"Michael Jackson",w:["Elvis Presley","Prince","Stevie Wonder"]},
+ {q:"Who composed The Four Seasons?",a:"Vivaldi",w:["Mozart","Bach","Handel"]},
+ {q:"Freddie Mercury was the lead singer of which band?",a:"Queen",w:["Genesis","The Who","Led Zeppelin"]},
+ {q:"Which singer's albums include 19, 21 and 25?",a:"Adele",w:["Taylor Swift","Ed Sheeran","Beyoncé"]},
+ {q:"Which country did ABBA come from?",a:"Sweden",w:["Norway","Denmark","Netherlands"]},
+ {q:"Which South African group sang on Paul Simon's Graceland?",a:"Ladysmith Black Mambazo",w:["Mango Groove","Juluka","Freshlyground"]},
+ {q:"In music, what does forte mean?",a:"Loud",w:["Fast","Soft","Slow"]},
+ {q:"On a drum kit, what is a hi-hat?",a:"A pair of cymbals",w:["A snare drum","A bass drum","A cowbell"]}],
+"Film & TV":[
+ {q:"Who directed Jaws?",a:"Steven Spielberg",w:["George Lucas","Martin Scorsese","Ridley Scott"]},
+ {q:"Which film series features Captain Jack Sparrow?",a:"Pirates of the Caribbean",w:["Indiana Jones","The Mummy","Master and Commander"]},
+ {q:"In The Lion King, who is Simba's father?",a:"Mufasa",w:["Scar","Rafiki","Zazu"]},
+ {q:"Which TV series is set in Westeros?",a:"Game of Thrones",w:["The Witcher","Vikings","The Last Kingdom"]},
+ {q:"Who played Forrest Gump?",a:"Tom Hanks",w:["Kevin Costner","Robin Williams","Tom Cruise"]},
+ {q:"What is the coffee shop in Friends called?",a:"Central Perk",w:["Monk's Café","The Daily Grind","Café Nervosa"]},
+ {q:"Which fictional spy has the code number 007?",a:"James Bond",w:["Jason Bourne","Ethan Hunt","George Smiley"]},
+ {q:"The film District 9 is set in which city?",a:"Johannesburg",w:["Cape Town","Nairobi","Lagos"]},
+ {q:"Which studio made Toy Story?",a:"Pixar",w:["DreamWorks","Illumination","Blue Sky"]},
+ {q:"Who directed the 1997 film Titanic?",a:"James Cameron",w:["Peter Jackson","Ron Howard","Robert Zemeckis"]}],
+"Science & Nature":[
+ {q:"Which planet is known as the Red Planet?",a:"Mars",w:["Venus","Jupiter","Mercury"]},
+ {q:"How many bones are in the adult human body?",a:"206",w:["186","226","256"]},
+ {q:"Which gas do plants absorb from the air for photosynthesis?",a:"Carbon dioxide",w:["Oxygen","Nitrogen","Hydrogen"]},
+ {q:"Roughly how fast does light travel in a vacuum?",a:"300,000 km per second",w:["30,000 km per second","3,000 km per second","3 million km per second"]},
+ {q:"Which is the largest animal on Earth?",a:"Blue whale",w:["African elephant","Whale shark","Giant squid"]},
+ {q:"Which blood type is known as the universal donor?",a:"O negative",w:["AB positive","A negative","B positive"]},
+ {q:"What is the centre of an atom called?",a:"The nucleus",w:["The electron","The core","The proton"]},
+ {q:"How many legs does a spider have?",a:"Eight",w:["Six","Ten","Twelve"]},
+ {q:"Who proposed the general theory of relativity?",a:"Albert Einstein",w:["Isaac Newton","Niels Bohr","Stephen Hawking"]},
+ {q:"Which is the largest planet in our solar system?",a:"Jupiter",w:["Saturn","Neptune","Uranus"]}]
+};
+const BANK_MAX = 10, LETTERS = ["A","B","C","D"], KEY = "pubquiz-v1";
+
+/* ---------- state ---------- */
+const fresh = () => ({
+  screen:"setup",
+  cfg:{cats:["General Knowledge","Sports","Food & Drink"], custom:[], teams:["Team 1","Team 2","Team 3"], per:5, diff:"Mixed", ai:true, open:false},
+  qs:[], i:0, intro:true, answers:[], revealed:[], adj:[], notes:[], error:"", loading:{done:0,total:0,label:""}
+});
+let S = fresh();
+const KEY_API = "pubquiz-anthropic-key", MODEL = "claude-sonnet-5-5";
+let apiKey = ""; try{ apiKey = localStorage.getItem(KEY_API) || ""; }catch(e){}
+const app = document.getElementById("app"), topActions = document.getElementById("topActions");
+const esc = s => String(s).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const shuffle = a => { a = a.slice(); for (let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];} return a; };
+function save(){ try{ localStorage.setItem(KEY, JSON.stringify(S)); }catch(e){} }
+function load(){ try{ const v = JSON.parse(localStorage.getItem(KEY)); if (v && v.cfg && v.screen){ if (v.screen==="loading") v.screen="setup"; return Object.assign(fresh(), v); } }catch(e){} return null; }
+
+/* ---------- scoring (derived from recorded answers) ---------- */
+function isRight(qi, t){ const q=S.qs[qi], a=S.answers[qi][t]; return q.type==="open" ? a===true : (a!==null && a===q.correct); }
+function scores(uptoRound){
+  return S.cfg.teams.map((_,t)=>{
+    let n = S.adj[t]||0;
+    S.qs.forEach((q,qi)=>{ if (S.revealed[qi] && isRight(qi,t)) n++; });
+    return n;
+  });
+}
+function roundScores(){
+  const rounds=[...new Set(S.qs.map(q=>q.cat))];
+  return {rounds, table:S.cfg.teams.map((_,t)=>rounds.map(r=>S.qs.reduce((n,q,qi)=>n+(q.cat===r&&S.revealed[qi]&&isRight(qi,t)?1:0),0)))};
+}
+function ranking(){
+  const sc=scores(); const order=S.cfg.teams.map((n,t)=>({n,t,s:sc[t]})).sort((a,b)=>b.s-a.s||a.t-b.t);
+  order.forEach((o,k)=>{ o.rank = k>0 && order[k-1].s===o.s ? order[k-1].rank : k+1; });
+  return order;
+}
+
+/* ---------- question building ---------- */
+function fromRaw(cat, r){
+  if (r.type==="open") return {cat, type:"open", q:r.q, a:r.a};
+  const opts = shuffle([r.a, ...r.w.slice(0,3)]);
+  return {cat, type:"mc", q:r.q, opts, correct:opts.indexOf(r.a)};
+}
+function valid(r){
+  if (!r || typeof r.q!=="string" || !r.q.trim() || typeof r.a!=="string" || !r.a.trim()) return false;
+  if (r.type==="open") return true;
+  return Array.isArray(r.w) && r.w.length>=3 && new Set([r.a,...r.w.slice(0,3)].map(x=>String(x).trim().toLowerCase())).size===4;
+}
+async function askClaude(cat, n, cfg){
+  const openRule = cfg.open
+    ? `About one question in five should be an open question (no options) with a short, unambiguous answer: {"type":"open","q":"...","a":"..."}. The rest are multiple choice.`
+    : `Every question is multiple choice.`;
+  const prompt =
+`You are writing questions for a pub quiz. Category: "${cat}". Difficulty: ${cfg.diff==="Mixed"?"a mix of easy, medium and hard":cfg.diff.toLowerCase()}.
+Write exactly ${n} questions. ${openRule}
+Multiple choice format: {"type":"mc","q":"question","a":"the correct answer","w":["wrong","wrong","wrong"]} with exactly three plausible wrong answers.
+Rules: one indisputably correct answer per question; well-established facts only, nothing that changes year to year; spread the questions across different subtopics of the category; no two questions on the same fact; keep answers short; do not hint at the answer in the question. The quiz is being played in South Africa by a general adult audience, so an occasional local question is welcome but most should be international.
+Variety seed: ${Math.random().toString(36).slice(2,8)}.
+Reply with a JSON array only, no commentary and no code fence.`;
+  const res = await fetch("https://api.anthropic.com/v1/messages", {
+    method:"POST",
+    headers:{"content-type":"application/json","x-api-key":apiKey,"anthropic-version":"2023-06-01","anthropic-dangerous-direct-browser-access":"true"},
+    body:JSON.stringify({model:MODEL, max_tokens:4000, messages:[{role:"user",content:prompt}]})
+  });
+  if (!res.ok){
+    let msg = "the request failed (" + res.status + ")";
+    if (res.status===401) msg = "the API key was rejected; check it in Settings";
+    else if (res.status===429) msg = "the API rate limit was hit; wait a minute and try again";
+    else { try{ const j = await res.json(); if (j.error && j.error.message) msg = j.error.message; }catch(e){} }
+    throw new Error(msg);
+  }
+  const data = await res.json();
+  const text = (data.content||[]).filter(b=>b.type==="text").map(b=>b.text).join("");
+  const arr = JSON.parse(text.slice(text.indexOf("["), text.lastIndexOf("]")+1));
+  const good = arr.filter(valid);
+  if (!good.length) throw new Error("no usable questions");
+  return good.slice(0,n);
+}
+async function startQuiz(){
+  const cfg=S.cfg, cats=cfg.cats.slice(), useAI = cfg.ai && !!apiKey;
+  S.error="";
+  if (!cats.length){ S.error="Choose at least one question type."; return render(); }
+  if (!useAI){
+    const noBank = cats.filter(c=>!BANK[c]);
+    if (noBank.length){ S.error=`The built-in bank has no questions for ${noBank.join(", ")}. Remove it, or use fresh questions from Claude.`; return render(); }
+  }
+  cfg.teams = cfg.teams.map((n,i)=>n.trim()||`Team ${i+1}`);
+  S.screen="loading"; S.loading={done:0,total:cats.length,label:cats[0]}; S.notes=[]; render();
+  const qs=[];
+  for (let k=0;k<cats.length;k++){
+    const cat=cats[k]; S.loading={done:k,total:cats.length,label:cat}; render();
+    let raw=null;
+    if (useAI){
+      try{ raw = await askClaude(cat, cfg.per, cfg); }
+      catch(e){
+        const why = (e && e.message) || "unknown error";
+        if (BANK[cat]) S.notes.push(`${cat}: could not get fresh questions (${why}), so this round uses the built-in bank.`);
+        else { S.screen="setup"; S.error=`Could not write questions for ${cat}: ${why}.`; return render(); }
+      }
+    }
+    if (!raw){ raw = shuffle(BANK[cat]).slice(0,cfg.per); }
+    if (raw.length<cfg.per) S.notes.push(`${cat}: ${raw.length} question${raw.length===1?"":"s"} available instead of ${cfg.per}.`);
+    raw.forEach(r=>qs.push(fromRaw(cat,r)));
+  }
+  S.qs=qs; S.i=0; S.intro=true;
+  S.answers=qs.map(q=>cfg.teams.map(()=>q.type==="open"?false:null));
+  S.revealed=qs.map(()=>false); S.adj=cfg.teams.map(()=>0);
+  S.screen="play"; render();
+}
+
+/* ---------- rendering ---------- */
+function render(){
+  topActions.innerHTML = `<span class="row" style="gap:18px">${S.screen==="play"?`<button class="link" data-act="quit">End quiz</button>`:""}<button class="link" data-act="settings">Settings</button></span>`;
+  app.innerHTML = ({setup:vSetup, loading:vLoading, play:vPlay, final:vFinal}[S.screen])();
+  save();
+}
+function vSetup(){
+  const c=S.cfg, all=[...Object.keys(BANK), ...c.custom], aiOn = c.ai && !!apiKey, maxPer = aiOn?20:BANK_MAX;
+  if (c.per>maxPer) c.per=maxPer;
+  const total=c.cats.length*c.per;
+  return `<div class="setup">
+  <div><p class="eyebrow">Set up tonight's quiz</p></div>
+  <div class="field"><span class="lab">Question types</span>
+    <div class="chips">${all.map(k=>`<button class="chip" data-act="cat" data-v="${esc(k)}" aria-pressed="${c.cats.includes(k)}">${esc(k)}</button>`).join("")}</div>
+    ${apiKey?`<form class="row" data-form="custom"><input type="text" id="customCat" placeholder="Add your own, e.g. 80s music" maxlength="40" aria-label="Add your own question type"><button class="btn ghost sm" type="submit">Add</button></form>`:""}
+    <span class="small muted">Each type is one round, played in the order you pick them${c.cats.length?`: ${c.cats.map(esc).join(", ")}`:""}.</span>
+  </div>
+  <div class="field"><span class="lab">Questions per type</span>
+    <div class="row"><div class="stepper"><button data-act="per" data-v="-1" aria-label="Fewer questions">−</button><output id="perOut">${c.per}</output><button data-act="per" data-v="1" aria-label="More questions">+</button></div>
+    <span class="muted">${total} question${total===1?"":"s"} in total</span></div>
+  </div>
+  <div class="field"><span class="lab">Teams</span>
+    <div class="row"><div class="stepper"><button data-act="teams" data-v="-1" aria-label="Fewer teams">−</button><output id="teamOut">${c.teams.length}</output><button data-act="teams" data-v="1" aria-label="More teams">+</button></div>
+    <span class="muted">Rename them below if you like</span></div>
+    <div class="teams">${c.teams.map((n,i)=>`<input type="text" id="team${i}" data-team="${i}" value="${esc(n)}" maxlength="28" aria-label="Name of team ${i+1}">`).join("")}</div>
+  </div>
+  <div class="field"><span class="lab">Questions</span>
+    ${apiKey?`<div class="seg" role="group" aria-label="Question source">
+      <button data-act="ai" data-v="1" aria-pressed="${c.ai}">Fresh, written by Claude</button>
+      <button data-act="ai" data-v="0" aria-pressed="${!c.ai}">Built-in bank</button></div>`
+    :`<p class="note small" style="margin:0">Using the built-in bank: ${BANK_MAX} questions per type, so repeats will show up after a few games. Add your Anthropic API key in Settings to get fresh questions and your own question types.</p>`}
+    ${aiOn?`<div class="row"><span class="muted">Difficulty</span><div class="seg" role="group" aria-label="Difficulty">${["Easy","Medium","Hard","Mixed"].map(d=>`<button data-act="diff" data-v="${d}" aria-pressed="${c.diff===d}">${d}</button>`).join("")}</div></div>
+    <label class="check"><input type="checkbox" id="openQ" ${c.open?"checked":""}><span>Include a few open questions with no options. You mark each team right or wrong.</span></label>`:""}
+  </div>
+  ${S.error?`<p class="err" role="alert">${esc(S.error)}</p>`:""}
+  <div class="actions"><button class="btn" data-act="start">Start the quiz</button></div>
+</div>`;
+}
+function vLoading(){
+  const l=S.loading, pct=Math.round(100*l.done/Math.max(1,l.total));
+  return `<div class="center"><p class="eyebrow">Getting the questions ready</p>
+  <p class="big">Round ${l.done+1}: <em>${esc(l.label)}</em></p>
+  <div class="bar"><i style="width:${pct}%"></i></div><p class="muted">${l.done} of ${l.total} rounds ready</p></div>`;
+}
+function roundInfo(){
+  const q=S.qs[S.i], rounds=[...new Set(S.qs.map(x=>x.cat))], r=rounds.indexOf(q.cat);
+  const inRound=S.qs.map((x,k)=>x.cat===q.cat?k:-1).filter(k=>k>=0);
+  return {q, rounds, r, inRound, pos:inRound.indexOf(S.i)};
+}
+function vScores(){
+  const rk=ranking(), top=rk[0].s;
+  return `<aside class="scores"><h2>Scores</h2>${rk.map(o=>`<div class="srow${o.s===top&&top>0?" lead":""}"><span class="rank">${o.rank}</span><span class="nm">${esc(o.n)}</span>
+  <span class="adj"><button data-act="adj" data-t="${o.t}" data-v="-1" aria-label="Take a point from ${esc(o.n)}">−</button><button data-act="adj" data-t="${o.t}" data-v="1" aria-label="Give a bonus point to ${esc(o.n)}">+</button></span>
+  <span class="pts">${o.s}</span></div>`).join("")}
+  <p class="small muted" style="margin:12px 0 0">Use − and + for bonus points or corrections.</p></aside>`;
+}
+function vPlay(){
+  const {q,rounds,r,inRound,pos}=roundInfo();
+  if (S.intro){
+    return `<div class="play"><div><p class="eyebrow">Round ${r+1} of ${rounds.length}</p>
+    <p class="big"><em>${esc(q.cat)}</em></p>
+    <p class="muted">${inRound.length} question${inRound.length===1?"":"s"}, one point each.</p>
+    ${r===0&&S.notes.length?S.notes.map(n=>`<p class="note small">${esc(n)}</p>`).join(""):""}
+    <div class="actions" style="margin-top:22px"><button class="btn" data-act="begin">Start round ${r+1}</button></div></div>${vScores()}</div>`;
+  }
+  const rev=S.revealed[S.i], last=S.i===S.qs.length-1, endRound=pos===inRound.length-1;
+  const body = q.type==="mc"
+    ? `<ol class="opts">${q.opts.map((o,k)=>`<li class="${rev?(k===q.correct?"correct":"dim"):""}"><span class="letter">${LETTERS[k]}</span><span>${esc(o)}</span></li>`).join("")}</ol>`
+    : `<div class="answerbox${rev?" shown":""}">${rev?`Answer: <strong>${esc(q.a)}</strong>`:`<span class="muted">Open question. Teams write their answer; reveal it, then mark who got it.</span>`}</div>`;
+  const rows = S.cfg.teams.map((n,t)=>{
+    const a=S.answers[S.i][t]; let picks, mark="";
+    if (q.type==="mc"){
+      picks = q.opts.map((_,k)=>`<button data-act="pick" data-t="${t}" data-v="${k}" aria-pressed="${a===k}" class="${k===q.correct?"ok":"no"}" aria-label="${esc(n)} answers ${LETTERS[k]}">${LETTERS[k]}</button>`).join("");
+      if (rev) mark = a===null?`<span class="mark muted">No answer</span>`:isRight(S.i,t)?`<span class="mark ok">+1</span>`:`<span class="mark no">Wrong</span>`;
+    } else {
+      picks = rev ? `<button class="wide ok" data-act="tick" data-t="${t}" aria-pressed="${a===true}">Got it</button>` : `<span class="small muted">Mark after the reveal</span>`;
+      if (rev) mark = a===true?`<span class="mark ok">+1</span>`:`<span class="mark muted">0</span>`;
+    }
+    return `<div class="trow"><span class="tname">${esc(n)}</span><span class="row" style="gap:10px"><span class="pick${rev?" revealed":""}">${picks}</span>${mark}</span></div>`;
+  }).join("");
+  const unanswered = q.type==="mc" ? S.answers[S.i].filter(a=>a===null).length : 0;
+  return `<div class="play"><div>
+  <div class="progress"><span class="eyebrow">Round ${r+1} of ${rounds.length} · ${esc(q.cat)}</span><span class="eyebrow">Question ${pos+1} of ${inRound.length}</span></div>
+  <h1 class="question">${esc(q.q)}</h1>
+  ${body}
+  <p class="eyebrow" style="margin:0 0 6px">${q.type==="mc"?"Each team's answer":"Who got it right"}</p>
+  <div class="sheet">${rows}</div>
+  <div class="actions">
+    ${!rev?`<button class="btn" data-act="reveal">Reveal the answer</button>${unanswered?`<span class="small muted">${unanswered} team${unanswered===1?" has":"s have"} not answered yet</span>`:""}`
+      :`<button class="btn" data-act="next">${last?"Finish and see the results":endRound?"Next round":"Next question"}</button><span class="small muted">You can still change an answer above; scores update.</span>`}
+    ${S.i>0?`<button class="btn ghost sm" data-act="prev">Back one question</button>`:""}
+  </div></div>${vScores()}</div>`;
+}
+function vFinal(){
+  const rk=ranking(), win=rk.filter(o=>o.rank===1), {rounds,table}=roundScores(), sc=scores();
+  return `<div class="final"><div><p class="eyebrow">Final result · ${S.qs.length} questions</p>
+  <p class="big">${win.length>1?`It's a tie: <em>${win.map(o=>esc(o.n)).join(" &amp; ")}</em>`:`<em>${esc(win[0].n)}</em> win${/s$/i.test(win[0].n)?"":"s"}`}</p>
+  <p class="muted">${win.length>1?`Level on ${win[0].s} point${win[0].s===1?"":"s"}. Time for a tie-breaker.`:`With ${win[0].s} point${win[0].s===1?"":"s"}.`}</p></div>
+  <div class="tablewrap"><table><thead><tr><th>Team</th>${rounds.map(r=>`<th>${esc(r)}</th>`).join("")}<th>Bonus</th><th>Total</th></tr></thead>
+  <tbody>${rk.map(o=>`<tr><td>${o.rank}. ${esc(o.n)}</td>${table[o.t].map(v=>`<td>${v}</td>`).join("")}<td>${S.adj[o.t]>0?"+":""}${S.adj[o.t]||0}</td><td class="tot">${sc[o.t]}</td></tr>`).join("")}</tbody></table></div>
+  <div class="actions"><button class="btn" data-act="again">New quiz, same teams</button><button class="btn ghost" data-act="reset">Start over</button><button class="btn ghost sm" data-act="review">Back to the last question</button></div></div>`;
+}
+
+/* ---------- events ---------- */
+const dlg=document.getElementById("confirmDlg");
+function confirmEnd(){ document.getElementById("confirmMsg").textContent="End this quiz now and go to the results?"; dlg.showModal(); }
+document.getElementById("confirmNo").onclick=()=>dlg.close();
+document.getElementById("confirmYes").onclick=()=>{ dlg.close(); S.screen="final"; render(); };
+
+const sdlg=document.getElementById("settingsDlg"), keyInput=document.getElementById("apiKeyInput"), keyStatus=document.getElementById("keyStatus");
+function openSettings(){ keyInput.value=""; keyStatus.textContent = apiKey ? "A key is saved (ending " + apiKey.slice(-4) + "). Paste a new one to replace it." : "No key saved. The quiz uses the built-in bank."; sdlg.showModal(); }
+function setKey(k){ apiKey=k; try{ k ? localStorage.setItem(KEY_API,k) : localStorage.removeItem(KEY_API); }catch(e){} }
+document.getElementById("settingsClose").onclick=()=>sdlg.close();
+document.getElementById("keyRemove").onclick=()=>{ setKey(""); sdlg.close(); render(); };
+document.getElementById("settingsForm").addEventListener("submit", e=>{ e.preventDefault(); e.stopPropagation(); const k=keyInput.value.trim(); if (k) setKey(k); sdlg.close(); render(); });
+
+document.addEventListener("click", e=>{
+  const b=e.target.closest("[data-act]"); if(!b) return;
+  const act=b.dataset.act, v=b.dataset.v, t=+b.dataset.t, c=S.cfg;
+  switch(act){
+    case "cat": c.cats = c.cats.includes(v) ? c.cats.filter(x=>x!==v) : [...c.cats, v]; S.error=""; break;
+    case "per": c.per = Math.min((c.ai&&apiKey)?20:BANK_MAX, Math.max(1, c.per + +v)); break;
+    case "teams": {
+      const n=Math.min(12, Math.max(1, c.teams.length + +v));
+      while(c.teams.length<n) c.teams.push(`Team ${c.teams.length+1}`);
+      c.teams.length=n; break; }
+    case "ai": c.ai = v==="1"; S.error=""; break;
+    case "diff": c.diff=v; break;
+    case "start": startQuiz(); return;
+    case "begin": S.intro=false; break;
+    case "pick": S.answers[S.i][t] = S.answers[S.i][t]===+v ? null : +v; break;
+    case "tick": S.answers[S.i][t] = !S.answers[S.i][t]; break;
+    case "reveal": S.revealed[S.i]=true; break;
+    case "next":
+      if (S.i===S.qs.length-1){ S.screen="final"; }
+      else { const cat=S.qs[S.i].cat; S.i++; S.intro = S.qs[S.i].cat!==cat; }
+      window.scrollTo(0,0); break;
+    case "prev": if (S.i>0){ S.i--; S.intro=false; } break;
+    case "adj": S.adj[t]=(S.adj[t]||0)+ +v; break;
+    case "quit": confirmEnd(); return;
+    case "settings": openSettings(); return;
+    case "review": S.screen="play"; S.i=S.qs.length-1; S.intro=false; break;
+    case "again": { const keep=S.cfg; S=fresh(); S.cfg=keep; break; }
+    case "reset": S=fresh(); break;
+  }
+  render();
+});
+document.addEventListener("input", e=>{
+  const el=e.target;
+  if (el.dataset.team!==undefined){ S.cfg.teams[+el.dataset.team]=el.value; save(); }
+  if (el.id==="openQ"){ S.cfg.open=el.checked; save(); }
+});
+document.addEventListener("submit", e=>{
+  e.preventDefault();
+  if (e.target.dataset.form==="custom"){
+    const inp=document.getElementById("customCat"), name=inp.value.trim().replace(/\s+/g," ");
+    if (!name) return;
+    const all=[...Object.keys(BANK), ...S.cfg.custom];
+    const existing=all.find(x=>x.toLowerCase()===name.toLowerCase());
+    if (!existing) S.cfg.custom.push(name);
+    const key=existing||name;
+    if (!S.cfg.cats.includes(key)) S.cfg.cats.push(key);
+    S.cfg.ai=true; render();
+  }
+});
+
+/* ---------- boot ---------- */
+const restored = load();
+if (restored) S = restored;
+render();
+if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js").catch(()=>{});
+</script>
+</body>
+</html>
