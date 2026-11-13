@@ -74,8 +74,11 @@ button:focus-visible,input:focus-visible,select:focus-visible{outline:3px solid 
 .stepper output{min-width:52px;text-align:center;font-family:var(--display);font-size:22px;font-variant-numeric:tabular-nums}
 input[type=text],input[type=password]{font:inherit;color:var(--chalk);background:var(--fill);border:1.5px solid var(--line);border-radius:6px;padding:9px 12px;min-width:0}
 input::placeholder{color:var(--chalk-dim)}
-.teams{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:10px}
-.teams input{width:100%}
+.teams{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:14px 10px}
+.teams input,.teams select{width:100%}
+.tcard{display:grid;gap:6px}
+select{font:inherit;font-size:15px;color:var(--chalk);background:var(--board-deep);border:1.5px solid var(--line);border-radius:6px;padding:8px 10px;min-width:0}
+.x2{display:inline-block;margin-left:6px;padding:1px 7px;border-radius:99px;background:var(--brass);color:#22190a;font-size:13px;font-weight:700;vertical-align:middle}
 .seg{display:inline-flex;border:1.5px solid var(--line);border-radius:6px;overflow:hidden;flex-wrap:wrap}
 .seg button{background:transparent;border:0;padding:9px 15px;border-right:1.5px solid var(--line)}
 .seg button:last-child{border-right:0}
@@ -263,7 +266,7 @@ const BANK_MAX = 10, LETTERS = ["A","B","C","D"], KEY = "pubquiz-v1";
 /* ---------- state ---------- */
 const fresh = () => ({
   screen:"setup",
-  cfg:{cats:["General Knowledge","Sports","Food & Drink"], custom:[], teams:["Team 1","Team 2","Team 3"], per:5, diff:"Mixed", ai:true, open:false},
+  cfg:{cats:["General Knowledge","Sports","Food & Drink"], custom:[], teams:["Team 1","Team 2","Team 3"], per:5, diff:"Mixed", ai:true, open:false, jokers:["","",""]},
   qs:[], i:0, intro:true, answers:[], revealed:[], adj:[], notes:[], error:"", loading:{done:0,total:0,label:""}
 });
 let S = fresh();
@@ -277,16 +280,24 @@ function load(){ try{ const v = JSON.parse(localStorage.getItem(KEY)); if (v && 
 
 /* ---------- scoring (derived from recorded answers) ---------- */
 function isRight(qi, t){ const q=S.qs[qi], a=S.answers[qi][t]; return q.type==="open" ? a===true : (a!==null && a===q.correct); }
-function scores(uptoRound){
+/* bonus round: a team's correct answers in the type it picked score double */
+function joker(t){ return (S.cfg.jokers||[])[t] || ""; }
+function normJokers(){
+  const c=S.cfg; if (!Array.isArray(c.jokers)) c.jokers=[];
+  c.jokers.length=c.teams.length;
+  for (let t=0;t<c.teams.length;t++) if (!c.jokers[t] || !c.cats.includes(c.jokers[t])) c.jokers[t]="";
+}
+function pts(qi,t){ return isRight(qi,t) ? (joker(t)===S.qs[qi].cat ? 2 : 1) : 0; }
+function scores(){
   return S.cfg.teams.map((_,t)=>{
     let n = S.adj[t]||0;
-    S.qs.forEach((q,qi)=>{ if (S.revealed[qi] && isRight(qi,t)) n++; });
+    S.qs.forEach((q,qi)=>{ if (S.revealed[qi]) n += pts(qi,t); });
     return n;
   });
 }
 function roundScores(){
   const rounds=[...new Set(S.qs.map(q=>q.cat))];
-  return {rounds, table:S.cfg.teams.map((_,t)=>rounds.map(r=>S.qs.reduce((n,q,qi)=>n+(q.cat===r&&S.revealed[qi]&&isRight(qi,t)?1:0),0)))};
+  return {rounds, table:S.cfg.teams.map((_,t)=>rounds.map(r=>S.qs.reduce((n,q,qi)=>n+(q.cat===r&&S.revealed[qi]?pts(qi,t):0),0)))};
 }
 function ranking(){
   const sc=scores(); const order=S.cfg.teams.map((n,t)=>({n,t,s:sc[t]})).sort((a,b)=>b.s-a.s||a.t-b.t);
@@ -344,6 +355,7 @@ async function startQuiz(){
     if (noBank.length){ S.error=`The built-in bank has no questions for ${noBank.join(", ")}. Remove it, or use fresh questions from Claude.`; return render(); }
   }
   cfg.teams = cfg.teams.map((n,i)=>n.trim()||`Team ${i+1}`);
+  normJokers();
   S.screen="loading"; S.loading={done:0,total:cats.length,label:cats[0]}; S.notes=[]; render();
   const qs=[];
   for (let k=0;k<cats.length;k++){
@@ -374,6 +386,7 @@ function render(){
   save();
 }
 function vSetup(){
+  normJokers();
   const c=S.cfg, all=[...Object.keys(BANK), ...c.custom], aiOn = c.ai && !!apiKey, maxPer = aiOn?20:BANK_MAX;
   if (c.per>maxPer) c.per=maxPer;
   const total=c.cats.length*c.per;
@@ -390,8 +403,9 @@ function vSetup(){
   </div>
   <div class="field"><span class="lab">Teams</span>
     <div class="row"><div class="stepper"><button data-act="teams" data-v="-1" aria-label="Fewer teams">−</button><output id="teamOut">${c.teams.length}</output><button data-act="teams" data-v="1" aria-label="More teams">+</button></div>
-    <span class="muted">Rename them below if you like</span></div>
-    <div class="teams">${c.teams.map((n,i)=>`<input type="text" id="team${i}" data-team="${i}" value="${esc(n)}" maxlength="28" aria-label="Name of team ${i+1}">`).join("")}</div>
+    <span class="muted">Name each team and pick its bonus round, where its points count double</span></div>
+    <div class="teams">${c.teams.map((n,i)=>`<div class="tcard"><input type="text" id="team${i}" data-team="${i}" value="${esc(n)}" maxlength="28" aria-label="Name of team ${i+1}">
+      <select id="joker${i}" data-joker="${i}" aria-label="Bonus round for team ${i+1}"><option value="">No bonus round</option>${c.cats.map(k=>`<option value="${esc(k)}"${c.jokers[i]===k?" selected":""}>Bonus: ${esc(k)}</option>`).join("")}</select></div>`).join("")}</div>
   </div>
   <div class="field"><span class="lab">Questions</span>
     ${apiKey?`<div class="seg" role="group" aria-label="Question source">
@@ -429,6 +443,7 @@ function vPlay(){
     return `<div class="play"><div><p class="eyebrow">Round ${r+1} of ${rounds.length}</p>
     <p class="big"><em>${esc(q.cat)}</em></p>
     <p class="muted">${inRound.length} question${inRound.length===1?"":"s"}, one point each.</p>
+    ${(()=>{ const d=S.cfg.teams.filter((_,t)=>joker(t)===q.cat); return d.length?`<p class="note">Bonus round, points doubled: <strong>${d.map(esc).join(", ")}</strong></p>`:""; })()}
     ${r===0&&S.notes.length?S.notes.map(n=>`<p class="note small">${esc(n)}</p>`).join(""):""}
     <div class="actions" style="margin-top:22px"><button class="btn" data-act="begin">Start round ${r+1}</button></div></div>${vScores()}</div>`;
   }
@@ -440,12 +455,12 @@ function vPlay(){
     const a=S.answers[S.i][t]; let picks, mark="";
     if (q.type==="mc"){
       picks = q.opts.map((_,k)=>`<button data-act="pick" data-t="${t}" data-v="${k}" aria-pressed="${a===k}" class="${k===q.correct?"ok":"no"}" aria-label="${esc(n)} answers ${LETTERS[k]}">${LETTERS[k]}</button>`).join("");
-      if (rev) mark = a===null?`<span class="mark muted">No answer</span>`:isRight(S.i,t)?`<span class="mark ok">+1</span>`:`<span class="mark no">Wrong</span>`;
+      if (rev) mark = a===null?`<span class="mark muted">No answer</span>`:isRight(S.i,t)?`<span class="mark ok">+${pts(S.i,t)}</span>`:`<span class="mark no">Wrong</span>`;
     } else {
       picks = rev ? `<button class="wide ok" data-act="tick" data-t="${t}" aria-pressed="${a===true}">Got it</button>` : `<span class="small muted">Mark after the reveal</span>`;
-      if (rev) mark = a===true?`<span class="mark ok">+1</span>`:`<span class="mark muted">0</span>`;
+      if (rev) mark = a===true?`<span class="mark ok">+${pts(S.i,t)}</span>`:`<span class="mark muted">0</span>`;
     }
-    return `<div class="trow"><span class="tname">${esc(n)}</span><span class="row" style="gap:10px"><span class="pick${rev?" revealed":""}">${picks}</span>${mark}</span></div>`;
+    return `<div class="trow"><span class="tname">${esc(n)}${joker(t)===q.cat?` <span class="x2">×2</span>`:""}</span><span class="row" style="gap:10px"><span class="pick${rev?" revealed":""}">${picks}</span>${mark}</span></div>`;
   }).join("");
   const unanswered = q.type==="mc" ? S.answers[S.i].filter(a=>a===null).length : 0;
   return `<div class="play"><div>
@@ -517,6 +532,7 @@ document.addEventListener("click", e=>{
 document.addEventListener("input", e=>{
   const el=e.target;
   if (el.dataset.team!==undefined){ S.cfg.teams[+el.dataset.team]=el.value; save(); }
+  if (el.dataset.joker!==undefined){ S.cfg.jokers[+el.dataset.joker]=el.value; save(); }
   if (el.id==="openQ"){ S.cfg.open=el.checked; save(); }
 });
 document.addEventListener("submit", e=>{
